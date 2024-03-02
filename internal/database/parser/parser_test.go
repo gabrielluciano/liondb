@@ -60,6 +60,38 @@ func testParseCommand(cmd string, expectedOperation string, expectedEntity strin
 	}
 }
 
+func TestParseCommandWithSinglePart(t *testing.T) {
+	testParseCommandExpectingParseError("NEW", t)
+}
+
+func TestParseCommandWithInvalidOperation(t *testing.T) {
+	testParseCommandExpectingParseError("ABC cliente:1", t)
+	testParseCommandExpectingParseError("CDE cliente:2", t)
+	testParseCommandExpectingParseError("EFG cliente:3", t)
+	testParseCommandExpectingParseError("GHI cliente:4", t)
+}
+
+func TestParseCommandWithInvalidId(t *testing.T) {
+	testParseCommandExpectingParseError("NEW cliente:a", t)
+}
+
+func TestParseCommandWithData(t *testing.T) {
+	testParseCommandExpectingParseError("NEW cliente:1 name", t)
+}
+
+func testParseCommandExpectingParseError(cmd string, t *testing.T) {
+	_, err := ParseCommand(cmd)
+	if err == nil {
+		t.Error("Incorrect result, expected entity to be not <nil>")
+	}
+
+	errType, ok := err.(*ParseError)
+
+	if !ok {
+		t.Errorf("Incorrect result, expected entity to be ParseError, got %v", errType)
+	}
+}
+
 func TestRebuildStrings(t *testing.T) {
 	expectedName := "John Silva Santos"
 	expectedSex := "male"
