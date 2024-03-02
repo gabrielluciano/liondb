@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gabrielluciano/liondb/internal/database/engine"
+	"github.com/gabrielluciano/liondb/internal/database/storage"
 )
 
 type ParseError struct {
@@ -16,7 +16,7 @@ type ParsedCommand struct {
 	operation string
 	entity    string
 	id        uint
-	data      *engine.Data
+	data      *storage.Data
 }
 
 func (err *ParseError) Error() string {
@@ -96,7 +96,7 @@ func getId(parts []string) (uint, error) {
 	return uint(id), nil
 }
 
-func getData(parts []string) (*engine.Data, error) {
+func getData(parts []string) (*storage.Data, error) {
 	parts = parts[2:]
 	if len(parts) == 0 {
 		return nil, nil
@@ -107,7 +107,7 @@ func getData(parts []string) (*engine.Data, error) {
 	if len(parts)%2 != 0 {
 		return nil, &ParseError{"invalid data, different number of attributes and values"}
 	}
-	data := &engine.Data{}
+	data := &storage.Data{}
 	for i := 0; i < len(parts); i += 2 {
 		(*data)[parts[i]] = parts[i+1]
 	}

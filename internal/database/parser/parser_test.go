@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gabrielluciano/liondb/internal/database/engine"
+	"github.com/gabrielluciano/liondb/internal/database/storage"
 )
 
 func TestParseCommandSingleArgument(t *testing.T) {
 	command := "NEW cliente:1 name 'Mary'"
 
-	testParseCommand(command, "NEW", "cliente", 1, engine.Data{
+	testParseCommand(command, "NEW", "cliente", 1, storage.Data{
 		"name": "Mary",
 	}, t)
 }
@@ -24,14 +24,14 @@ func TestParseCommandNoArgument(t *testing.T) {
 func TestParseCommandMultipleArguments(t *testing.T) {
 	command := "NEW cliente:1 name 'John Tobias' age 18"
 
-	testParseCommand(command, "NEW", "cliente", 1, engine.Data{
+	testParseCommand(command, "NEW", "cliente", 1, storage.Data{
 		"name": "John Tobias",
 		"age":  "18",
 	}, t)
 }
 
 func testParseCommand(cmd string, expectedOperation string, expectedEntity string,
-	expectedId uint, expectedData engine.Data, t *testing.T) {
+	expectedId uint, expectedData storage.Data, t *testing.T) {
 
 	parsedCommand, err := ParseCommand(cmd)
 
