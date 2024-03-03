@@ -7,8 +7,8 @@ import (
 
 func TestInsertRecord(t *testing.T) {
 	r := &Record{
-		id: 1,
-		data: &Data{
+		Id: 1,
+		Data: &Data{
 			"name": "Jonh",
 			"age":  75,
 		},
@@ -28,15 +28,15 @@ func TestInsertRecord(t *testing.T) {
 
 func TestUpdateRecord(t *testing.T) {
 	original := &Record{
-		id: 1,
-		data: &Data{
+		Id: 1,
+		Data: &Data{
 			"name": "Jonh",
 			"age":  75,
 		},
 	}
 	replacement := &Record{
-		id: 1,
-		data: &Data{
+		Id: 1,
+		Data: &Data{
 			"name": "Mark",
 			"age":  23,
 		},
@@ -57,8 +57,8 @@ func TestUpdateRecord(t *testing.T) {
 
 func TestGetRecordFoundRecord(t *testing.T) {
 	r := &Record{
-		id: 1,
-		data: &Data{
+		Id: 1,
+		Data: &Data{
 			"name": "Jonh",
 			"age":  75,
 		},
@@ -66,7 +66,7 @@ func TestGetRecordFoundRecord(t *testing.T) {
 	personsStorage := New("persons")
 	personsStorage.InsertOrUpdateRecord(r)
 
-	foundRecord, founded := personsStorage.GetRecord(r.id)
+	foundRecord, founded := personsStorage.GetRecord(r.Id)
 
 	if foundRecord != r {
 		t.Errorf("Incorrect result, expected foundRecord to be %v, got: %v", r, foundRecord)
@@ -93,8 +93,8 @@ func TestGetRecordNotFoundRecord(t *testing.T) {
 
 func TestDeleteRecord(t *testing.T) {
 	r := &Record{
-		id: 5,
-		data: &Data{
+		Id: 5,
+		Data: &Data{
 			"name": "Jonh",
 			"age":  75,
 		},
@@ -102,7 +102,7 @@ func TestDeleteRecord(t *testing.T) {
 	personsStorage := New("persons")
 	personsStorage.InsertOrUpdateRecord(r)
 
-	deletedRecord, deleted := personsStorage.DeleteRecord(r.id)
+	deletedRecord, deleted := personsStorage.DeleteRecord(r.Id)
 
 	if deletedRecord != r {
 		t.Errorf("Incorrect result, expected deletedRecord to be %v, got: %v", r, deletedRecord)
@@ -116,8 +116,8 @@ func TestDeleteRecord(t *testing.T) {
 func TestUpdateRecordConcurrently(t *testing.T) {
 	finalBalance := 500
 	client := &Record{
-		id: 5,
-		data: &Data{
+		Id: 5,
+		Data: &Data{
 			"name":    "Jonh",
 			"balance": 0,
 		},
@@ -132,24 +132,24 @@ func TestUpdateRecordConcurrently(t *testing.T) {
 		go func() {
 			wg.Done()
 
-			client.mu.Lock()
-			balance, err := client.data.GetInt("balance")
+			client.Mu.Lock()
+			balance, err := client.Data.GetInt("balance")
 			if err != nil {
 				t.Error("Test failed", err)
 			}
-			client.data.SetInt("balance", balance+1)
-			client.mu.Unlock()
+			client.Data.SetInt("balance", balance+1)
+			client.Mu.Unlock()
 		}()
 	}
 	wg.Wait()
 
-	foundRecord, founded := clientsStorage.GetRecord(client.id)
+	foundRecord, founded := clientsStorage.GetRecord(client.Id)
 
 	if !founded {
 		t.Errorf("Incorrect result, expected founded to be true, got: %v", founded)
 	}
 
-	balance, _ := foundRecord.data.GetInt("balance")
+	balance, _ := foundRecord.Data.GetInt("balance")
 
 	if balance != finalBalance {
 		t.Errorf("Incorrect result, expected balance to be %v, got: %v", finalBalance, balance)
@@ -158,22 +158,22 @@ func TestUpdateRecordConcurrently(t *testing.T) {
 
 func TestIterateOverValues(t *testing.T) {
 	data1 := &Record{
-		id: 1,
-		data: &Data{
+		Id: 1,
+		Data: &Data{
 			"name": "Mike",
 			"age":  23,
 		},
 	}
 	data2 := &Record{
-		id: 2,
-		data: &Data{
+		Id: 2,
+		Data: &Data{
 			"name": "Jane",
 			"age":  34,
 		},
 	}
 	data3 := &Record{
-		id: 3,
-		data: &Data{
+		Id: 3,
+		Data: &Data{
 			"name": "John",
 			"age":  71,
 		},

@@ -7,9 +7,9 @@ import (
 )
 
 type Record struct {
-	mu   sync.Mutex
-	id   uint
-	data *Data
+	Mu   sync.Mutex
+	Id   uint
+	Data *Data
 }
 
 type Storage struct {
@@ -17,19 +17,11 @@ type Storage struct {
 	records btree.BTreeG[*Record]
 }
 
-func (r *Record) Less(than btree.Item) bool {
-	other, ok := than.(*Record)
-	if !ok {
-		panic("Type not allowed in this method. Only *Record is alowed.")
-	}
-	return r.id < other.id
-}
-
 func New(name string) *Storage {
 	return &Storage{
 		name: name,
 		records: *btree.NewG(64, func(a, b *Record) bool {
-			return a.id < b.id
+			return a.Id < b.Id
 		}),
 	}
 }
@@ -39,7 +31,7 @@ func (s *Storage) InsertOrUpdateRecord(r *Record) (*Record, bool) {
 }
 
 func (s *Storage) GetRecord(id uint) (*Record, bool) {
-	return s.records.Get(&Record{id: id})
+	return s.records.Get(&Record{Id: id})
 }
 
 func (s *Storage) IterateOverRecords(iterator func(record *Record) bool) {
@@ -47,7 +39,7 @@ func (s *Storage) IterateOverRecords(iterator func(record *Record) bool) {
 }
 
 func (s *Storage) DeleteRecord(id uint) (*Record, bool) {
-	return s.records.Delete(&Record{id: id})
+	return s.records.Delete(&Record{Id: id})
 }
 
 func (s *Storage) Len() int {
