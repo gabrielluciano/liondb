@@ -10,10 +10,11 @@ import (
 func TestServer(t *testing.T) {
 	expected := "Hello, John\n"
 
-	SetMessageHandler(func(user string) string {
-		return "Hello, " + user
+	server := &Server{port: "7123"}
+	server.SetMessageHandler(func(user string) []byte {
+		return []byte("Hello, " + user)
 	})
-	go Listen()
+	go server.Listen()
 	time.Sleep(10 * time.Millisecond) // Wait for server initialization
 
 	// Connect to server and send message
