@@ -1,11 +1,13 @@
 package storage
 
 import (
-	"sync"
 	"testing"
+
+	"github.com/gabrielluciano/liondb/internal/testutil"
 )
 
-func TestInsertRecord(t *testing.T) {
+func TestInsertRecord_ShouldReturnTrue(t *testing.T) {
+	// Arrange
 	r := &Record{
 		Id: 1,
 		Data: &Data{
@@ -13,20 +15,42 @@ func TestInsertRecord(t *testing.T) {
 			"age":  75,
 		},
 	}
-
 	personsStorage := New("persons")
-	replacedRecord, replaced := personsStorage.InsertOrUpdateRecord(r)
 
-	if replacedRecord != nil {
-		t.Errorf("Incorrect result, expected replacedRecord to be <nil>, got: %v", replacedRecord)
-	}
+	// Act
+	inserted := personsStorage.InsertRecord(r)
 
-	if replaced {
-		t.Errorf("Incorrect result, expected replaced to be false, got: %v", replaced)
-	}
+	// Assert
+	testutil.AssertTrue(t, inserted, "inserted")
+
+	insertedRecord, found := personsStorage.GetRecord(r.Id)
+	testutil.AssertTrue(t, found, "found")
+	testutil.AssertEquals(t, insertedRecord, r, "insertedRecord")
 }
 
-func TestUpdateRecord(t *testing.T) {
+func TestInsertRecord_ShouldReturnFalse(t *testing.T) {
+	// Arrange
+	r := &Record{
+		Id: 1,
+		Data: &Data{
+			"name": "Jonh",
+			"age":  75,
+		},
+	}
+	personsStorage := New("persons")
+	personsStorage.InsertRecord(r)
+
+	// Act
+	inserted := personsStorage.InsertRecord(r)
+
+	// Assert
+	testutil.AssertFalse(t, inserted, "inserted")
+}
+
+func TestUpdateRecord_ShouldReturnTrue(t *testing.T) {
+	// Arrange
+	expectedAge := 23
+
 	original := &Record{
 		Id: 1,
 		Data: &Data{
@@ -37,25 +61,44 @@ func TestUpdateRecord(t *testing.T) {
 	replacement := &Record{
 		Id: 1,
 		Data: &Data{
-			"name": "Mark",
-			"age":  23,
+			"age": expectedAge,
 		},
 	}
 	personsStorage := New("persons")
-	personsStorage.InsertOrUpdateRecord(original)
+	personsStorage.InsertRecord(original)
 
-	replacedRecord, replaced := personsStorage.InsertOrUpdateRecord(replacement)
+	// Act
+	replaced := personsStorage.UpdateRecord(replacement)
 
-	if replacedRecord != original {
-		t.Errorf("Incorrect result, expected replacedRecord to be %v, got: %v", original, replacedRecord)
-	}
+	// Assert
+	testutil.AssertTrue(t, replaced, "replaced")
 
-	if !replaced {
-		t.Errorf("Incorrect result, expected replaced to be true, got: %v", replaced)
-	}
+	updatedRecord, found := personsStorage.GetRecord(original.Id)
+	testutil.AssertTrue(t, found, "found")
+
+	updatedAge := (*updatedRecord.Data)["age"]
+	testutil.AssertEquals(t, expectedAge, updatedAge, "age")
 }
 
-func TestGetRecordFoundRecord(t *testing.T) {
+func TestUpdateRecord_ShouldReturnFalse(t *testing.T) {
+	// Arrange
+	replacement := &Record{
+		Id: 1,
+		Data: &Data{
+			"age": 23,
+		},
+	}
+	personsStorage := New("persons")
+
+	// Act
+	replaced := personsStorage.UpdateRecord(replacement)
+
+	// Assert
+	testutil.AssertFalse(t, replaced, "replaced")
+}
+
+func TestGetRecord_ShouldFindRecord(t *testing.T) {
+	// Arrange
 	r := &Record{
 		Id: 1,
 		Data: &Data{
@@ -64,34 +107,30 @@ func TestGetRecordFoundRecord(t *testing.T) {
 		},
 	}
 	personsStorage := New("persons")
-	personsStorage.InsertOrUpdateRecord(r)
+	personsStorage.InsertRecord(r)
 
+	// Act
 	foundRecord, founded := personsStorage.GetRecord(r.Id)
 
-	if foundRecord != r {
-		t.Errorf("Incorrect result, expected foundRecord to be %v, got: %v", r, foundRecord)
-	}
-
-	if !founded {
-		t.Errorf("Incorrect result, expected founded to be true, got: %v", founded)
-	}
+	// Assert
+	testutil.AssertEquals(t, r, foundRecord, "foundRecord")
+	testutil.AssertTrue(t, founded, "founded")
 }
 
-func TestGetRecordNotFoundRecord(t *testing.T) {
+func TestGetRecord_ShouldNotFindRecord(t *testing.T) {
+	// Arrange
 	personsStorage := New("persons")
 
+	// Act
 	foundRecord, founded := personsStorage.GetRecord(1)
 
-	if foundRecord != nil {
-		t.Errorf("Incorrect result, expected foundRecord to be <nil>, got: %v", foundRecord)
-	}
-
-	if founded {
-		t.Errorf("Incorrect result, expected founded to be false, got: %v", founded)
-	}
+	// Assert
+	testutil.AssertNil(t, foundRecord, "foundRecord")
+	testutil.AssertFalse(t, founded, "founded")
 }
 
-func TestDeleteRecord(t *testing.T) {
+func TestDeleteRecord_ShouldReturnTrue(t *testing.T) {
+	// Arrange
 	r := &Record{
 		Id: 5,
 		Data: &Data{
@@ -100,63 +139,29 @@ func TestDeleteRecord(t *testing.T) {
 		},
 	}
 	personsStorage := New("persons")
-	personsStorage.InsertOrUpdateRecord(r)
+	personsStorage.InsertRecord(r)
 
+	// Act
 	deletedRecord, deleted := personsStorage.DeleteRecord(r.Id)
 
-	if deletedRecord != r {
-		t.Errorf("Incorrect result, expected deletedRecord to be %v, got: %v", r, deletedRecord)
-	}
-
-	if !deleted {
-		t.Errorf("Incorrect result, expected deleted to be true, got: %v", deleted)
-	}
+	// Assert
+	testutil.AssertEquals(t, r, deletedRecord, "deletedRecord")
+	testutil.AssertTrue(t, deleted, "deleted")
 }
 
-func TestUpdateRecordConcurrently(t *testing.T) {
-	finalBalance := 500
-	client := &Record{
-		Id: 5,
-		Data: &Data{
-			"name":    "Jonh",
-			"balance": 0,
-		},
-	}
+func TestDeleteRecord_ShouldReturnFalse(t *testing.T) {
+	// Arrange
+	personsStorage := New("persons")
 
-	clientsStorage := New("persons")
-	clientsStorage.InsertOrUpdateRecord(client)
+	// Act
+	_, deleted := personsStorage.DeleteRecord(1)
 
-	var wg sync.WaitGroup
-	for i := 1; i <= finalBalance; i++ {
-		wg.Add(1)
-		go func() {
-			wg.Done()
-
-			client.Mu.Lock()
-			balance, err := client.Data.GetInt("balance")
-			if err != nil {
-				t.Error("Test failed", err)
-			}
-			client.Data.SetInt("balance", balance+1)
-			client.Mu.Unlock()
-		}()
-	}
-	wg.Wait()
-
-	foundRecord, founded := clientsStorage.GetRecord(client.Id)
-
-	if !founded {
-		t.Errorf("Incorrect result, expected founded to be true, got: %v", founded)
-	}
-
-	balance, _ := foundRecord.Data.GetInt("balance")
-
-	if balance != finalBalance {
-		t.Errorf("Incorrect result, expected balance to be %v, got: %v", finalBalance, balance)
-	}
+	// Assert
+	testutil.AssertFalse(t, deleted, "deleted")
 }
 
-func TestIterateOverValues(t *testing.T) {
+func TestIterateOverRecords(t *testing.T) {
+	// Arrange
 	data1 := &Record{
 		Id: 1,
 		Data: &Data{
@@ -180,18 +185,117 @@ func TestIterateOverValues(t *testing.T) {
 	}
 
 	dataStorage := New("data")
-	dataStorage.InsertOrUpdateRecord(data1)
-	dataStorage.InsertOrUpdateRecord(data2)
-	dataStorage.InsertOrUpdateRecord(data3)
+	dataStorage.InsertRecord(data1)
+	dataStorage.InsertRecord(data2)
+	dataStorage.InsertRecord(data3)
 
+	// Act
 	records := make([]*Record, 0)
-
 	dataStorage.IterateOverRecords(func(record *Record) bool {
 		records = append(records, record)
 		return true
 	})
 
-	if len(records) != dataStorage.Len() {
-		t.Errorf("Incorrect result, expected len(records) to be %v, got: %v", dataStorage.Len(), len(records))
+	// Assert
+	testutil.AssertEquals(t, dataStorage.Len(), len(records), "len(records)")
+}
+
+func TestIterateOverRecordsEmptyStorage(t *testing.T) {
+	// Arrange
+	dataStorage := New("data")
+
+	// Act
+	records := make([]*Record, 0)
+	dataStorage.IterateOverRecords(func(record *Record) bool {
+		records = append(records, record)
+		return true
+	})
+
+	// Assert
+	testutil.AssertEquals(t, dataStorage.Len(), len(records), "len(records)")
+}
+
+func TestGetAllRecordsAscend(t *testing.T) {
+	// Arrange
+	data1 := &Record{
+		Id: 1,
+		Data: &Data{
+			"name": "Mike",
+			"age":  23,
+		},
 	}
+	data2 := &Record{
+		Id: 2,
+		Data: &Data{
+			"name": "Jane",
+			"age":  34,
+		},
+	}
+	data3 := &Record{
+		Id: 3,
+		Data: &Data{
+			"name": "John",
+			"age":  71,
+		},
+	}
+	dataStorage := New("data")
+	dataStorage.InsertRecord(data1)
+	dataStorage.InsertRecord(data2)
+	dataStorage.InsertRecord(data3)
+
+	// Act
+	records := dataStorage.GetAllRecords(false)
+
+	// Assert
+	testutil.AssertEquals(t, dataStorage.Len(), len(records), "len(records)")
+	testutil.AssertEquals(t, (*data1.Data)["name"], (*records[0].Data)["name"], "first record name")
+	testutil.AssertEquals(t, (*data3.Data)["name"], (*records[2].Data)["name"], "last record name")
+}
+
+func TestGetAllRecordsDescend(t *testing.T) {
+	// Arrange
+	data1 := &Record{
+		Id: 1,
+		Data: &Data{
+			"name": "Mike",
+			"age":  23,
+		},
+	}
+	data2 := &Record{
+		Id: 2,
+		Data: &Data{
+			"name": "Jane",
+			"age":  34,
+		},
+	}
+	data3 := &Record{
+		Id: 3,
+		Data: &Data{
+			"name": "John",
+			"age":  71,
+		},
+	}
+	dataStorage := New("data")
+	dataStorage.InsertRecord(data1)
+	dataStorage.InsertRecord(data2)
+	dataStorage.InsertRecord(data3)
+
+	// Act
+	records := dataStorage.GetAllRecords(true)
+
+	// Assert
+	testutil.AssertEquals(t, dataStorage.Len(), len(records), "len(records)")
+	testutil.AssertEquals(t, (*data3.Data)["name"], (*records[0].Data)["name"], "first record name")
+	testutil.AssertEquals(t, (*data1.Data)["name"], (*records[2].Data)["name"], "last record name")
+}
+
+func TestGetAllRecordsEmptyStorage(t *testing.T) {
+	// Arrange
+	dataStorage := New("data")
+
+	// Act
+	records := dataStorage.GetAllRecords(false)
+
+	// Assert
+	testutil.AssertEquals(t, dataStorage.Len(), len(records), "len(records)")
 }
