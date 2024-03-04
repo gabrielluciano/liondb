@@ -14,9 +14,16 @@ func AssertFalse(tb testing.TB, actual bool, name string) {
 }
 
 func AssertNil(tb testing.TB, actual interface{}, name string) {
-	if !reflect.ValueOf(actual).IsNil() {
-		tb.Errorf("Incorrect result, expected %s to be '<nil>', got '%v'", name, actual)
+	if actual == nil {
+		return
 	}
+
+	rv := reflect.ValueOf(actual)
+	if rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return
+	}
+
+	tb.Errorf("Incorrect result, expected %s to be '<nil>', got '%v'", name, actual)
 }
 
 func AssertEquals(tb testing.TB, expected, actual interface{}, name string) {
