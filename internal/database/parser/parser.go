@@ -1,22 +1,31 @@
 package parser
 
 import (
-	"slices"
+	"errors"
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/gabrielluciano/liondb/internal/database/storage"
 )
 
+var splitCommandRegex = regexp.MustCompile("[^\\s\"']+|\"[^\"]*\"|'[^']*'")
+
 type ParseError struct {
 	msg string
 }
 
+type Id struct {
+	Lower uint
+	Upper uint
+}
+
 type ParsedCommand struct {
-	operation string
-	entity    string
-	id        uint
-	data      *storage.Data
+	Operation string
+	Entity    string
+	Id        Id
+	Data      *storage.Data
 }
 
 func (err *ParseError) Error() string {
@@ -24,117 +33,131 @@ func (err *ParseError) Error() string {
 }
 
 func ParseCommand(cmd string) (*ParsedCommand, error) {
-	parts := getParts(cmd)
+	parts, err := getParts(cmd)
+	if err != nil {
+		return nil, &ParseError{"Error parsing command: " + err.Error()}
+	}
 
+	entity, err := getEntity(parts[1])
+	if err != nil {
+		return nil, &ParseError{"Error parsing entity: " + err.Error()}
+	}
+
+	ids, err := getIds(parts[1])
+	if err != nil {
+		return nil, &ParseError{"Error parsing id: " + err.Error()}
+	}
+
+	data, err := getData(parts[2:])
+	if err != nil {
+		return nil, &ParseError{"Error parsing data: " + err.Error()}
+	}
+
+	return &ParsedCommand{
+		Operation: strings.ToUpper(parts[0]),
+		Entity:    entity,
+		Id:        ids,
+		Data:      data,
+	}, nil
+}
+
+func getParts(cmd string) ([]string, error) {
+	parts := splitCommandRegex.FindAllString(cmd, -1)
 	if len(parts) < 2 {
-		return nil, &ParseError{"invalid command"}
+		return nil, errors.New("invalid command")
 	}
-
-	operation, err := getOperation(parts)
-	if err != nil {
-		return nil, err
-	}
-
-	entity, err := getEntity(parts)
-	if err != nil {
-		return nil, err
-	}
-
-	id, err := getId(parts)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := getData(parts)
-	if err != nil {
-		return nil, err
-	}
-
-	parsedCommand := &ParsedCommand{
-		operation: operation,
-		entity:    entity,
-		id:        id,
-		data:      data,
-	}
-
-	return parsedCommand, nil
+	return parts, nil
 }
 
-func getParts(cmd string) []string {
-	cmd = strings.TrimSpace(cmd)
-	return strings.Split(cmd, " ")
+func getEntity(entityPart string) (string, error) {
+	splitChar := ":"
+	if strings.Contains(entityPart, "[") {
+		splitChar = "["
+	}
+	parts := strings.Split(entityPart, splitChar)
+	if parts[0] == "" {
+		return "", errors.New("invalid entity")
+
+	}
+	return parts[0], nil
 }
 
-func getOperation(parts []string) (string, error) {
-	operations := []string{"NEW", "UPD", "GET", "DEL"}
-	operation := strings.ToUpper(parts[0])
-	validOperation := slices.Contains(operations, operation)
-	if !validOperation {
-		return "", &ParseError{msg: "invalid operation"}
+func getIds(idPart string) (Id, error) {
+	if strings.Contains(idPart, "[") {
+		idPart = strings.Split(idPart, "[")[1]
+		idPart = strings.ReplaceAll(idPart, "[", "")
+		idPart = strings.ReplaceAll(idPart, "]", "")
+		ids := strings.Split(idPart, ":")
+		lower, err := parseId(ids[0])
+		if err != nil {
+			return Id{}, nil
+		}
+		upper, err := parseId(ids[1])
+		if err != nil {
+			return Id{}, nil
+		}
+		return Id{Lower: lower, Upper: upper}, nil
+	} else if strings.Contains(idPart, ":") {
+		idString := strings.Split(idPart, ":")[1]
+		id, err := parseId(idString)
+		if err != nil {
+			return Id{}, nil
+		}
+		return Id{Lower: id, Upper: id}, nil
 	}
-	return operation, nil
+	return Id{}, nil
 }
 
-func getEntity(parts []string) (string, error) {
-	parts = strings.Split(parts[1], ":")
-	if len(parts) < 1 {
-		return "", &ParseError{"invalid entity"}
+func parseId(idString string) (uint, error) {
+	var id int
+	if idString == "" {
+		return 0, nil
 	}
-	entity := parts[0]
-	return entity, nil
-}
-
-func getId(parts []string) (uint, error) {
-	parts = strings.Split(parts[1], ":")
-	if len(parts) < 2 {
-		return 0, &ParseError{"id not found in command"}
-	}
-	id, err := strconv.Atoi(parts[1])
+	id, err := strconv.Atoi(idString)
 	if err != nil || id < 1 {
-		return 0, &ParseError{"invalid id, must be a positive number"}
+		return 0, errors.New("invalid id format")
 	}
 	return uint(id), nil
 }
 
 func getData(parts []string) (*storage.Data, error) {
-	parts = parts[2:]
 	if len(parts) == 0 {
 		return nil, nil
 	}
-	// rebuild strings previously splitted
-	parts = rebuildStrings(parts)
 
 	if len(parts)%2 != 0 {
 		return nil, &ParseError{"invalid data, different number of attributes and values"}
 	}
+
 	data := &storage.Data{}
 	for i := 0; i < len(parts); i += 2 {
-		(*data)[parts[i]] = parts[i+1]
+		(*data)[parts[i]] = parseDataTypes(parts[i+1])
 	}
 	return data, nil
 }
 
-func rebuildStrings(parts []string) []string {
-	fixedParts := make([]string, 0, len(parts))
-	var i int
-	for i = 0; i < len(parts); i++ {
-		// If find begining of string delimited by single quotes
-		if strings.HasPrefix(parts[i], "'") {
-			buffer := ""
-			j := i
-			// while not find the end of string delimited by single quotes
-			for !strings.HasSuffix(parts[j], "'") {
-				buffer += parts[j] + " "
-				j++
-			}
-			buffer += parts[j]
-			buffer = strings.ReplaceAll(buffer, "'", "")
-			fixedParts = append(fixedParts, buffer)
-			i += j - 1
-		} else {
-			parts[i] = strings.ReplaceAll(parts[i], "'", "")
-			fixedParts = append(fixedParts, parts[i])
-		}
+func parseDataTypes(part string) interface{} {
+	if strings.HasPrefix(part, "'") {
+		return part
 	}
-	return fixedParts
+
+	if strings.ToUpper(part) == "TRUE" {
+		return true
+	}
+
+	if strings.ToUpper(part) == "FALSE" {
+		return false
+	}
+
+	integer, err := strconv.Atoi(part)
+	if err == nil {
+		return integer
+	}
+
+	float, err := strconv.ParseFloat(part, 64)
+	if err == nil {
+		return float
+	}
+
+	return fmt.Sprintf("'%s'", part)
 }
