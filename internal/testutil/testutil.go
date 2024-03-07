@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -40,5 +41,11 @@ func AssertNotNil(tb testing.TB, actual interface{}, name string) {
 func AssertEquals(tb testing.TB, expected, actual interface{}, name string) {
 	if expected != actual {
 		tb.Errorf("Incorrect result, expected %s to be '%v', got '%v'", name, expected, actual)
+	}
+}
+
+func AssertContains(tb testing.TB, s string, substr string) {
+	if !strings.Contains(s, substr) {
+		tb.Errorf("Incorrect result, expected '%s' to contains '%s'", s, substr)
 	}
 }
